@@ -1,0 +1,72 @@
+---
+title: "Principles of machine learning course project"
+author: "Marius Bakker"
+date: "February 3, 2019"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(caret)
+```
+
+# Principles of machine learning course project
+
+## Summary
+
+This write-up summarizes the method and results of designing a prediction algorithem for the 'weight lifting excercise dataset'. The goal is to predict how subjects performed during a simple weightlifting excersise. A model is estimated and tested on a large data sample and applied to a small sample as part of a quiz excercise. As will be shown a 'random forest' model results in a very high prediction accuracy. 
+
+### Data  description
+
+The dataset consists of over 20.000 observations of various subjects performing an excercise, giving movement measures in a variety of ways. 
+
+Two data issues arise, first a number of variables are irrelevant for the estimation such as the subject name and the time of the excersise. These are removed manually. Second, a number of variables consists largely of missing variables which are removed from the dataset. The removal is done by eliminating all variables that have no values in the final quiz dataset, since they are by definition not useful for estimating the final quiz results.
+
+The dataset is split into a training (75%) and a test set (25%) to get a full out of sample estimate. The quiz set is kept seperately for the final estimations with the model.
+
+```{r data}
+set.seed(12345)
+
+data <- read.csv("~/Principles of machine learning assignment/pml-training.csv")
+
+quizset <- read.csv("~/Principles of machine learning assignment/pml-testing.csv")
+
+drop <- sapply(quizset,function(x){all(is.na(x))})
+
+data <- data[,!drop]
+data <- data[,-c(1:7)]
+
+quizset <- quizset[,!drop]
+quizset <- quizset[,-c(1:7)]
+
+inTrain = createDataPartition(data$class, p = 3/4)[[1]]
+
+training = data[ inTrain,]
+
+testing = data[-inTrain,]
+
+rm(data)
+```
+
+## Model estimation
+
+### Random forest
+The random forest model is one of the most powerful available prediction methods, however one of the limitations is the long estimation time. The model is estimated with 100 trees as it already results in an out-of-sample accuracy >99%.
+```{r random forest model}
+setupRF <- trainControl(method="cv", number=3, verboseIter=FALSE)
+modRF <- train(classe~.,data = training, method="rf", ntree = 100, trControl = setupRF, na.action = "na.omit")
+predRF <- predict(modRF,testing)
+confmatRF <- confusionMatrix(predRF,testing$classe)
+confmatRF
+```
+
+
+## Predicting the quizset
+
+Using the random forest method estimated above, the quiz set is tested giving twenty predictions.
+
+```{r predicting quiz}
+QuizPredict <- predict(modRF,quizset)
+QuizPredict
